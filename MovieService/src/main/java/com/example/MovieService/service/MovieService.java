@@ -1,11 +1,14 @@
 package com.example.MovieService.service;
 
+import com.example.MovieService.config.RabbitMQConfig;
+import com.example.MovieService.dto.MovieAddedEvent;
 import com.example.MovieService.dto.MovieRequest;
 import com.example.MovieService.dto.MovieResponse;
 import com.example.MovieService.entity.Movie;
 import com.example.MovieService.enums.Genre;
 import com.example.MovieService.repository.MovieRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,21 +18,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MovieService {
     private final MovieRepository movieRepository;
-
-    // ── CREATE ──────────────────────────────────────────
-    public MovieResponse addMovie(MovieRequest request) {
-        Movie movie = Movie.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .director(request.getDirector())
-                .releaseYear(request.getReleaseYear())
-                .genre(request.getGenre())
-                .posterUrl(request.getPosterUrl())
-                .rating(0.0)
-                .build();
-
-        return toResponse(movieRepository.save(movie));
-    }
+    private final AmqpTemplate amqpTemplate;
 
     // ── READ ALL ─────────────────────────────────────────
     public List<MovieResponse> getAllMovies() {
@@ -119,5 +108,36 @@ public class MovieService {
                 .rating(movie.getRating())
                 .posterUrl(movie.getPosterUrl())
                 .build();
+    }
+
+    // ── CREATE ──────────────────────────────────────────
+    public MovieResponse addMovie(MovieRequest request) {
+        Movie movie = Movie.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .director(request.getDirector())
+                .releaseYear(request.getReleaseYear())
+                .genre(request.getGenre())
+                .posterUrl(request.getPosterUrl())
+                .rating(0.0)
+                .build();
+
+        Movie saved = movieRepository.save(movie);
+
+        // publish event to RabbitMQ after saving   ← ADD THIS BLOCK
+        MovieAddedEvent event = new MovieAddedEvent(
+                saved.getId(),
+                saved.getTitle(),
+                saved.getGenre().name(),
+                saved.getDirector(),
+                saved.getReleaseYear()
+        );
+        amqpTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY,
+                event
+        );
+
+        return toResponse(saved);
     }
 }
