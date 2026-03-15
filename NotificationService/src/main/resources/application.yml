@@ -1,7 +1,0 @@
-spring:
-  application:
-    name: notification-service     # unique per service
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
