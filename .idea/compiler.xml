@@ -11,6 +11,7 @@
         <module name="config-server" />
         <module name="MovieService" />
         <module name="UserService" />
+        <module name="api-gateway" />
         <module name="NotificationService" />
         <module name="ReviewService" />
       </profile>
@@ -24,6 +25,7 @@
       <module name="ReviewService" options="-parameters" />
       <module name="UserService" options="-parameters" />
       <module name="WatchlistService" options="-parameters" />
+      <module name="api-gateway" options="-parameters" />
       <module name="config-server" options="-parameters" />
     </option>
   </component>
