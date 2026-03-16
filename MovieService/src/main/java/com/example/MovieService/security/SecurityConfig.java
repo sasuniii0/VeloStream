@@ -25,15 +25,18 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s ->
                         s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
                         // public — anyone can browse and search
                         .requestMatchers(HttpMethod.GET, "/api/movies/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/movies/search").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/movies/**").permitAll()
 
                         // ADMIN only for write operations
                         .requestMatchers(HttpMethod.POST, "/api/movies/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/movies/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/movies/**").hasAuthority("ROLE_ADMIN")
+
 
                         .anyRequest().authenticated()
                 )

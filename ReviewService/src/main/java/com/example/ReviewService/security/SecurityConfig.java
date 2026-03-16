@@ -31,6 +31,8 @@ public class SecurityConfig {
                         // anyone can read reviews
                         .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
 
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/reviews/**").permitAll()
+
                         .requestMatchers(HttpMethod.PUT, "/api/reviews/**").permitAll()
                         // only logged-in users can post reviews
                         .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()

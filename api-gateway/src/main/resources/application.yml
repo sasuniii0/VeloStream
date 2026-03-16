@@ -1,3 +1,4 @@
+# api-gateway/src/main/resources/application.yml
 server:
   port: 8080
 
@@ -8,13 +9,6 @@ spring:
     import: "optional:configserver:http://localhost:8888"
   cloud:
     gateway:
-      globalcors:
-        corsConfigurations:
-          '[/**]':
-            allowedOrigins: "http://localhost:4200"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-            allowCredentials: true
       routes:
         - id: user-service
           uri: lb://user-service
