@@ -8,6 +8,13 @@ spring:
     import: "optional:configserver:http://localhost:8888"
   cloud:
     gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:4200"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
       routes:
         - id: user-service
           uri: lb://user-service
@@ -33,17 +40,6 @@ spring:
           uri: lb://notification-service
           predicates:
             - Path=/api/notifications/**
-
-        - id: review-service
-          uri: lb://review-service
-          predicates:
-            - Path=/api/reviews/**
-
-        - id: watchlist-service
-          uri: lb://watchlist-service
-          predicates:
-            - Path=/api/watchlist/**
-
 
 eureka:
   client:
