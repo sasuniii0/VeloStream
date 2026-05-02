@@ -1,0 +1,136 @@
+name: Agentic Catalog Generator
+
+on:
+  push:
+    branches: [test/do-not-merge,feature/gh-agentic-workflow]
+  workflow_dispatch:
+
+jobs:
+  catalog-agent:
+    runs-on: ubuntu-latest
+
+    env:
+      MAX_RETRIES: 3
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Extract context
+        run: |
+          echo "Analyzing repository..."
+
+          REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+          echo "REPO_NAME=$REPO_NAME" >> "$GITHUB_ENV"
+
+          # README description
+          if [ -f README.md ]; then
+            DESC=$(head -n 1 README.md | sed 's/^# *//')
+          else
+            DESC="Service for $REPO_NAME"
+          fi
+          echo "DESCRIPTION=$DESC" >> "$GITHUB_ENV"
+
+          # Detect tech stack
+          if [ -f pom.xml ]; then
+            TECH="java"
+          elif [ -f package.json ]; then
+            TECH="nodejs"
+          else
+            TECH="unknown"
+          fi
+          echo "TECH=$TECH" >> "$GITHUB_ENV"
+
+      - name: Plan generation
+        run: |
+          echo "Planning catalog structure..."
+
+          TYPE="service"
+          OWNER="team-default"
+          LIFECYCLE="production"
+
+          if [ "$TECH" = "java" ]; then
+            TAGS="java,backend"
+          elif [ "$TECH" = "nodejs" ]; then
+            TAGS="nodejs,backend"
+          else
+            TAGS="unknown"
+          fi
+
+          echo "TYPE=$TYPE" >> "$GITHUB_ENV"
+          echo "OWNER=$OWNER" >> "$GITHUB_ENV"
+          echo "LIFECYCLE=$LIFECYCLE" >> "$GITHUB_ENV"
+          echo "TAGS=$TAGS" >> "$GITHUB_ENV"
+
+      - name: Generate catalog-info.yaml
+        run: |
+          echo "Generating catalog..."
+
+          TAG_LIST=$(echo "$TAGS" | sed 's/,/\n    - /g')
+
+          cat <<EOF > catalog-info.yaml
+          apiVersion: backstage.io/v1alpha1
+          kind: Component
+          metadata:
+            name: $REPO_NAME
+            description: "$DESCRIPTION"
+            tags:
+              - $TAG_LIST
+            annotations:
+              github.com/project-slug: ${GITHUB_REPOSITORY}
+              backstage.io/techdocs-ref: dir:.
+          spec:
+            type: $TYPE
+            owner: $OWNER
+            lifecycle: $LIFECYCLE
+            system: default-system
+            domain: default-domain
+            links:
+              - url: https://github.com/${GITHUB_REPOSITORY}
+                title: GitHub Repo
+                icon: github
+          EOF
+
+      - name: Validate YAML
+        id: validate
+        run: |
+          pip install yamllint
+
+          if yamllint catalog-info.yaml; then
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fix and retry if invalid
+        if: steps.validate.outputs.valid == 'false'
+        run: |
+          echo "Trying to fix YAML..."
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i..."
+
+            sed -i 's/unknown/service/g' catalog-info.yaml
+
+            if yamllint catalog-info.yaml; then
+              echo "Fixed successfully"
+              exit 0
+            fi
+          done
+
+          echo "Failed to fix YAML"
+          exit 1
+
+      - name: Commit catalog
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add catalog-info.yaml
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "chore: agentic catalog generation"
+            git push
+          fi
