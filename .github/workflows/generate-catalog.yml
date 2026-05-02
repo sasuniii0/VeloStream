@@ -25,7 +25,31 @@ jobs:
 
           # README description
           if [ -f README.md ]; then
-            DESC=$(head -n 1 README.md | sed 's/^# *//')
+            DESC=$(python3 - <<'PY'
+            from pathlib import Path
+
+            readme = Path("README.md")
+            raw = readme.read_bytes()
+
+            # Handle UTF-16 BOM files and standard UTF-8 files.
+            encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+
+            try:
+              text = raw.decode(encoding, errors="replace")
+            except Exception:
+              text = raw.decode("utf-8", errors="replace")
+
+            line = text.splitlines()[0] if text.splitlines() else ""
+            if line.startswith("#"):
+              line = line.lstrip("#").strip()
+
+            # Strip control chars that break YAML parsing, keep printable text.
+            line = "".join(ch for ch in line if ch >= " " or ch == "\t")
+
+            # Escape double quotes for YAML quoted string output below.
+            print(line.replace('"', '\\"'))
+            PY
+            )
           else
             DESC="Service for $REPO_NAME"
           fi
